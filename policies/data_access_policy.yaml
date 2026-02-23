@@ -1,0 +1,8 @@
+policy_id: data_access_policy
+invariants:
+  - id: authenticated_only
+    condition: actor.authenticated == True
+  - id: role_sufficient
+    condition: request.required_role <= actor.role_level
+  - id: data_size_limit
+    condition: request.data_size <= system.max_threshold

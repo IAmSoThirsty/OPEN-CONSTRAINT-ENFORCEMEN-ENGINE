@@ -1,0 +1,6 @@
+policy_id: mutation_policy_v1
+invariants:
+  - id: no_privilege_escalation
+    condition: request.role <= actor.max_role
+  - id: state_bounds
+    condition: request.value <= system.max_threshold

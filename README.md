@@ -160,3 +160,137 @@ Logs include:
 - Response details
 - Timestamp
 - Unique evaluation ID
+
+## Production Deployment
+
+### Docker
+
+Build and run with Docker:
+
+```bash
+# Build image
+./build-docker.sh
+
+# Run locally
+docker run -p 5000:5000 \
+  -v $(pwd)/policies:/app/policies:ro \
+  -e LOG_FORMAT=json \
+  -e METRICS_ENABLED=true \
+  constraint-enforcement-engine:latest
+```
+
+**Features:**
+- Minimal Python 3.12-slim base image
+- Non-root runtime (user 1000)
+- Multi-stage build for smaller image size
+- Reproducible builds
+- Health checks built-in
+
+### Kubernetes
+
+Deploy to Kubernetes:
+
+```bash
+# Deploy all manifests
+./deploy-k8s.sh
+
+# Or manually
+kubectl apply -f k8s/
+```
+
+**Deployment includes:**
+- 3 replicas with rolling updates
+- Resource requests/limits (CPU: 250m-1000m, Memory: 256Mi-512Mi)
+- Liveness and readiness probes
+- Network policies for ingress/egress control
+- Service account with minimal permissions
+- ConfigMaps for policies and configuration
+- Prometheus metrics scraping annotations
+
+### Configuration
+
+All configuration is environment-driven (12-factor compliant):
+
+```bash
+# Copy example configuration
+cp .env.example .env
+
+# Edit as needed
+vim .env
+```
+
+**Key environment variables:**
+- `WORKERS`: Number of Gunicorn workers (default: 4)
+- `LOG_FORMAT`: Logging format - json or text (default: json)
+- `METRICS_ENABLED`: Enable Prometheus metrics (default: true)
+- `RATE_LIMIT_ENABLED`: Enable rate limiting (default: true)
+- `MAX_CONTENT_LENGTH`: Max request size in bytes (default: 1MB)
+- `REQUEST_TIMEOUT`: Request timeout in seconds (default: 30)
+
+See `.env.example` for complete configuration options.
+
+### Observability
+
+#### Metrics Endpoint
+
+Prometheus metrics available at `/metrics`:
+
+```bash
+curl http://localhost:5000/metrics
+```
+
+**Metrics exposed:**
+- `policy_evaluations_total`: Counter for evaluations by policy and result
+- `policy_evaluation_latency_seconds`: Histogram of evaluation latency
+- `http_requests_total`: Counter for all HTTP requests
+
+#### Structured Logging
+
+All logs output as JSON when `LOG_FORMAT=json`:
+
+```json
+{
+  "asctime": "2026-02-23T10:00:00.000Z",
+  "name": "root",
+  "levelname": "INFO",
+  "message": "Policy evaluation completed",
+  "policy_id": "mutation_policy_v1",
+  "allowed": true,
+  "latency_ms": 1.23
+}
+```
+
+### Health Checks
+
+#### Liveness Probe
+
+`GET /health` - Checks if application is alive
+
+```bash
+curl http://localhost:5000/health
+```
+
+#### Readiness Probe
+
+`GET /ready` - Checks if application is ready (policies loaded, compiler warmed)
+
+```bash
+curl http://localhost:5000/ready
+```
+
+### Concurrency & Performance
+
+- **Thread-safe**: All components use proper locking
+- **Worker model**: Gunicorn with configurable sync workers
+- **Deterministic**: Hash consistency across all replicas
+- **Clock-independent**: No timestamps in evaluation context
+
+### Security & Failure Isolation
+
+- **Rate limiting**: Configurable per-endpoint limits
+- **Request size limits**: Configurable max content length
+- **Timeouts**: HTTP layer and simulation timeouts
+- **CPU bounds**: Evaluation depth limits prevent infinite loops
+- **Non-root runtime**: Container runs as UID 1000
+- **Read-only filesystem**: Policies mounted read-only
+- **Network policies**: Ingress/egress restrictions

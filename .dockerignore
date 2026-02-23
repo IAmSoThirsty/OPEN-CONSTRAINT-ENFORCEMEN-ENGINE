@@ -1,29 +1,47 @@
+# Ignore build artifacts and dependencies
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Virtual environments
 venv/
 env/
+ENV/
+.venv
+
+# Environment files
 .env
 .env.local
-.env.production
+
+# Logs
 *.log
 audit_logs/
+
+# Testing
 .pytest_cache/
 .coverage
 htmlcov/
+.tox/
+
+# Build artifacts
 dist/
 build/
 *.egg-info/
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Temporary files
 tmp/
 temp/
 *.tmp
-k8s/secrets/

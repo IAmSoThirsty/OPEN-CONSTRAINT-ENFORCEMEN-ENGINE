@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: constraint-enforcement-policies
+  namespace: constraint-enforcement
+  labels:
+    app: constraint-enforcement-engine
+data:
+  mutation_policy_v1.yaml: |
+    policy_id: mutation_policy_v1
+    invariants:
+      - id: no_privilege_escalation
+        condition: request.role <= actor.max_role
+      - id: state_bounds
+        condition: request.value <= system.max_threshold
+  data_access_policy.yaml: |
+    policy_id: data_access_policy
+    invariants:
+      - id: authenticated_only
+        condition: actor.authenticated == True
+      - id: role_sufficient
+        condition: request.required_role <= actor.role_level
+      - id: data_size_limit
+        condition: request.data_size <= system.max_threshold

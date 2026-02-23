@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: constraint-enforcement-engine
+  namespace: constraint-enforcement
+  labels:
+    app: constraint-enforcement-engine
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: constraint-enforcement-engine
+  template:
+    metadata:
+      labels:
+        app: constraint-enforcement-engine
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: constraint-enforcement-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: constraint-enforcement
+        image: constraint-enforcement-engine:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 5000
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: constraint-enforcement-config
+        env:
+        - name: POLICIES_DIR
+          value: "/app/policies"
+        - name: AUDIT_LOG_DIR
+          value: "/app/audit_logs"
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: policies
+          mountPath: /app/policies
+          readOnly: true
+        - name: audit-logs
+          mountPath: /app/audit_logs
+      volumes:
+      - name: policies
+        configMap:
+          name: constraint-enforcement-policies
+      - name: audit-logs
+        emptyDir: {}
+      terminationGracePeriodSeconds: 30
